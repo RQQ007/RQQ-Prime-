@@ -119,12 +119,12 @@ nav .plus svg{width:30px;height:30px}
 /* sheet */
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:.25s;z-index:20}
 .sheet-bg.open{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,105%);width:100%;max-width:480px;background:#0f1012;border-radius:28px 28px 0 0;border:1px solid var(--line);padding:12px 20px calc(env(safe-area-inset-bottom) + 22px);transition:transform .3s ease;z-index:21;max-height:92dvh;overflow:auto}
+.sheet{position:fixed;left:50%;bottom:0;transition:transform .3s ease,bottom .2s ease;transform:translate(-50%,105%);width:100%;max-width:480px;background:#0f1012;border-radius:28px 28px 0 0;border:1px solid var(--line);padding:12px 20px calc(env(safe-area-inset-bottom) + 22px);z-index:21;max-height:92dvh;overflow:auto}
 .sheet.open{transform:translate(-50%,0)}
 .grab{width:40px;height:5px;border-radius:9px;background:#333;margin:0 auto 16px}
 .sheet h2{font-size:26px;font-weight:900}
-.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 16px);transform:translate(-50%,-140%);background:#fff;color:#000;padding:10px 18px;border-radius:99px;font-weight:900;font-size:14px;transition:.3s;z-index:30}
-.toast.show{transform:translate(-50%,0)}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 16px);transform:translate(-50%,-20px);opacity:0;visibility:hidden;pointer-events:none;background:#fff;color:#000;padding:10px 18px;border-radius:99px;font-weight:900;font-size:14px;transition:transform .3s,opacity .3s,visibility .3s;z-index:30}
+.toast.show{transform:translate(-50%,0);opacity:1;visibility:visible}
 .foot{text-align:center;color:#55575c;font-size:12px;margin-top:6px}
 </style>
 </head>
@@ -147,7 +147,7 @@ nav .plus svg{width:30px;height:30px}
 </nav>
 
 <div class="sheet-bg" id="sheetBg" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet"></div>
+<div class="sheet" id="sheet" onmousedown="if(event.target.closest('button'))event.preventDefault()"></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="importFile" accept="application/json" hidden onchange="importData(this)">
 <input type="file" id="photoFile" accept="image/*" hidden onchange="setPhoto(this)">
@@ -227,7 +227,7 @@ function vToday(){
       <div class="pill${left<0?' over':''}">${fmt(Math.abs(left))} ${left<0?'OVER':'LEFT'}</div></div>
   </div>
   <div class="card"><div class="eyebrow">Macros</div>
-    ${macro('Protein',t.p,g.p,'var(--blue)')}${macro('Carbs',t.c,g.c,'var(--orange)')}${macro('Fat',t.f,g.f,'var(--violet)')}
+    ${macro('Protein',t.p,g.p,'var(--blue)')}${macro('Fat',t.f,g.f,'var(--violet)')}${macro('Carbs',t.c,g.c,'var(--orange)')}
   </div>`;
 }
 function macro(n,v,goal,col){
@@ -238,12 +238,12 @@ function macro(n,v,goal,col){
 
 function vDiary(){
   const list=S.meals[sel]||[],t=totals(sel);
-  let h=`<div class="sum"><div><b>${fmt(t.kcal)}</b><small>KCAL</small></div><div><b style="color:var(--blue)">${fmt(t.p)}</b><small>PROTEIN</small></div><div><b style="color:var(--orange)">${fmt(t.c)}</b><small>CARBS</small></div><div><b style="color:var(--violet)">${fmt(t.f)}</b><small>FAT</small></div></div>`;
+  let h=`<div class="sum"><div><b>${fmt(t.kcal)}</b><small>KCAL</small></div><div><b style="color:var(--blue)">${fmt(t.p)}</b><small>PROTEIN</small></div><div><b style="color:var(--violet)">${fmt(t.f)}</b><small>FAT</small></div><div><b style="color:var(--orange)">${fmt(t.c)}</b><small>CARBS</small></div></div>`;
   for(const[k,l] of MEALS){
     const items=list.filter(x=>x.meal===k),kc=items.reduce((a,x)=>a+x.kcal,0);
     h+=`<div class="card"><div class="mh"><span class="eyebrow">${l}</span><span class="mk">${fmt(kc)} kcal</span></div>
     ${items.map(it=>`<div class="item"><div><div class="in">${esc(it.name)}</div>
-      <div class="im"><span class="p">P ${fmt(it.p)}</span> · <span class="c">C ${fmt(it.c)}</span> · <span class="f">F ${fmt(it.f)}</span></div></div>
+      <div class="im"><span class="p">P ${fmt(it.p)}</span> · <span class="f">F ${fmt(it.f)}</span> · <span class="c">C ${fmt(it.c)}</span></div></div>
       <div class="ik">${fmt(it.kcal)}</div><button class="x" onclick="delFood('${it.id}')" aria-label="Delete">×</button></div>`).join('')}
     <button class="addm" onclick="openFood('${k}')">+ Add ${l.toLowerCase()}</button></div>`;
   }
@@ -252,7 +252,7 @@ function vDiary(){
 
 function vWeight(){
   const ks=Object.keys(S.weights).sort(),u=S.settings.unit;
-  if(!ks.length) return `<div class="card empty">No weight logged yet<button class="btn" onclick="openWeight()">Log today's weight</button></div>`;
+  if(!ks.length) return `<div class="card empty">No weight logged yet<br>Tap + to add your weight</div>`;
   const cur=S.weights[ks.at(-1)];
   const cutoff=wRange?dkey(addDays(new Date(),-wRange+1)):'';
   const pts=ks.filter(k=>k>=cutoff);
@@ -273,7 +273,6 @@ function vWeight(){
     <div class="seg">${rng.map(([v,l])=>`<button class="${wRange===v?'on':''}" onclick="wRange=${v};render()">${l}</button>`).join('')}</div>
     ${chart(pts)}
   </div>
-  <button class="btn" style="margin:0 0 14px" onclick="openWeight()">Log weight</button>
   <div class="card"><div class="eyebrow">History</div>${hist}</div>`;
 }
 function chart(pts){
@@ -318,8 +317,8 @@ function vSettings(){
     <label class="f"><span>Calories, kcal</span><input type="number" inputmode="numeric" value="${g.kcal}" onchange="setS('kcal',Math.max(1,num(this.value,2400)))"></label>
     <div class="grid3">
       <label class="f"><span style="color:var(--blue)">Protein g</span><input type="number" inputmode="numeric" value="${g.p}" onchange="setS('p',num(this.value))"></label>
-      <label class="f"><span style="color:var(--orange)">Carbs g</span><input type="number" inputmode="numeric" value="${g.c}" onchange="setS('c',num(this.value))"></label>
       <label class="f"><span style="color:var(--violet)">Fat g</span><input type="number" inputmode="numeric" value="${g.f}" onchange="setS('f',num(this.value))"></label>
+      <label class="f"><span style="color:var(--orange)">Carbs g</span><input type="number" inputmode="numeric" value="${g.c}" onchange="setS('c',num(this.value))"></label>
     </div>
     <div class="hint" id="macroHint"></div>
   </div>
@@ -381,8 +380,8 @@ function openFood(meal){
     <label class="f"><span>Calories, kcal</span><input id="fK" type="number" inputmode="decimal" placeholder="auto from macros"></label>
     <div class="grid3">
       <label class="f"><span style="color:var(--blue)">Protein</span><input id="fP" type="number" inputmode="decimal" placeholder="0"></label>
-      <label class="f"><span style="color:var(--orange)">Carbs</span><input id="fC" type="number" inputmode="decimal" placeholder="0"></label>
       <label class="f"><span style="color:var(--violet)">Fat</span><input id="fF" type="number" inputmode="decimal" placeholder="0"></label>
+      <label class="f"><span style="color:var(--orange)">Carbs</span><input id="fC" type="number" inputmode="decimal" placeholder="0"></label>
     </div>
     <button class="btn" onclick="addFood()">Add to diary</button>`);
 }
@@ -405,7 +404,6 @@ function openWeight(){
     <label class="f"><span>Date</span><input id="wD" type="date" value="${t}" max="${t}"></label>
     <label class="f"><span>Weight, ${u}</span><input id="wV" type="number" inputmode="decimal" step="0.1" value="${pre!=null?w1(cv(pre)):''}"></label>
     <button class="btn" onclick="addWeight()">Save</button>`);
-  setTimeout(()=>{const i=$('#wV');i.focus();i.select()},320);
 }
 function addWeight(){
   const d=$('#wD').value||today(),v=num($('#wV').value);
@@ -438,6 +436,20 @@ let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('sh
 
 const _render=render;render=function(){_render();afterSettings()};
 render();
+
+/* keep the sheet above the iPhone keyboard */
+if(window.visualViewport){
+  const fit=()=>{const vv=visualViewport,lh=document.documentElement.clientHeight;
+    $('#sheet').style.bottom=Math.max(0,lh-vv.height-vv.offsetTop)+'px'};
+  visualViewport.addEventListener('resize',fit);visualViewport.addEventListener('scroll',fit);
+}
+
+/* new day: jump to today */
+let lastDay=today();
+function dayCheck(){const t=today();if(t!==lastDay){if(sel===lastDay)sel=t;lastDay=t;render()}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')dayCheck()});
+setInterval(dayCheck,60000);
+
 if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
