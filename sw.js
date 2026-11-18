@@ -1,6 +1,6 @@
 // Bump VERSION after every update so phones get the new files
-const VERSION = 'prime-v4';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon.png'];
+const VERSION = 'prime-v5';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icon.png.PNG'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
