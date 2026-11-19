@@ -88,6 +88,23 @@ header{display:flex;justify-content:space-between;align-items:flex-end;margin-bo
 .hrow .r{display:flex;align-items:center;gap:12px}
 .hrow .delta{font-size:13px;width:52px;text-align:right}
 
+/* checkpoints */
+.cp-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cp .pill{margin-top:0;font-size:12px;padding:5px 14px;letter-spacing:.06em;white-space:nowrap}
+.cp-goal{font-size:60px;font-weight:900;line-height:1;margin:16px 0 6px;letter-spacing:-.02em}
+.cp-goal span{font-size:20px;color:var(--mut);margin-left:6px}
+.cp-by{font-size:13px;color:var(--mut);font-weight:800;letter-spacing:.12em}
+.cp-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mut);font-weight:800;padding-top:12px;margin-top:12px;border-top:1px solid var(--line)}
+.cp-row b{color:#fff;font-weight:900}
+.cp-n{font-size:12px;color:var(--mut);font-weight:800;letter-spacing:.1em}
+.prow{display:grid;grid-template-columns:24px 1fr auto 82px;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-weight:800}
+.prow:last-child{border-bottom:0}
+.prow .n,.prow .d{color:var(--mut);font-size:13px;letter-spacing:.08em}
+.prow.now .n,.prow.now .d{color:#fff}
+.prow .fact{display:block;font-size:11px;color:var(--mut);text-align:right}
+.st{font-size:11px;letter-spacing:.1em;font-weight:900;text-align:center;border-radius:99px;padding:6px 0;color:var(--mut);background:var(--card2)}
+.st.ok{background:var(--green);color:#fff}.st.bad{background:var(--red);color:#fff}.st.now{background:#fff;color:#000}
+
 /* forms */
 label.f{display:block;margin-top:12px}
 label.f span{font-size:11px;letter-spacing:.18em;color:var(--mut);font-weight:800;text-transform:uppercase}
@@ -250,9 +267,53 @@ function vDiary(){
   return h;
 }
 
+/* ---------- weight plan (checkpoints) ---------- */
+const PLAN=[['2026-11-26',87.5],['2026-12-03',86.7],['2026-12-10',85.9],['2026-12-17',85.1],['2026-12-24',84.3],['2026-12-31',83.5],['2027-01-07',82.7],['2027-01-14',81.9],['2027-01-21',81.1],['2027-01-28',80.3],['2027-02-04',79.5],['2027-02-11',78.7],['2027-02-18',78.0]];
+// weight on the checkpoint day, or the latest one in the 6 days before it
+function cpWeight(k){
+  if(S.weights[k]!=null) return S.weights[k];
+  const lo=dkey(addDays(parse(k),-6)),ks=Object.keys(S.weights).filter(x=>x>=lo&&x<=k).sort();
+  return ks.length?S.weights[ks.at(-1)]:null;
+}
+// result opens the day after the checkpoint
+function cpStatus(i){
+  const[k,kg]=PLAN[i];if(today()<=k) return null;
+  const w=cpWeight(k);if(w==null) return 'none';
+  return Math.round(w*10)<=Math.round(kg*10)?'ok':'bad';
+}
+function vPlan(){
+  const t=today(),u=S.settings.unit,ks=Object.keys(S.weights).sort(),cur=ks.length?S.weights[ks.at(-1)]:null;
+  const ai=PLAN.findIndex(([k])=>k>=t),fin=PLAN.at(-1),passed=PLAN.filter((_,i)=>cpStatus(i)==='ok').length;
+  let top;
+  if(ai<0){
+    top=`<div class="card cp"><div class="eyebrow">Plan complete</div>
+      <div class="cp-goal">${w1(cv(fin[1]))}<span>${u}</span></div>
+      <div class="cp-by">${passed} OF ${PLAN.length} CHECKPOINTS PASSED</div></div>`;
+  }else{
+    const[k,kg]=PLAN[ai],days=Math.round((parse(k)-parse(t))/864e5),left=cur==null?null:cv(cur)-cv(kg);
+    top=`<div class="card cp">
+      <div class="cp-top"><span class="eyebrow">Checkpoint ${ai+1} of ${PLAN.length}</span>
+        <span class="pill">${days===0?'TODAY':days===1?'1 DAY LEFT':days+' DAYS LEFT'}</span></div>
+      <div class="cp-goal">${w1(cv(kg))}<span>${u}</span></div>
+      <div class="cp-by">BY ${dateLabel(k)}</div>
+      <div class="cp-row"><span>Now <b>${cur==null?'—':w1(cv(cur))+' '+u}</b></span><span>${left==null?'':left>0.05?'<b>'+w1(left)+' '+u+'</b> to go':'<b>On target</b>'}</span></div>
+      <div class="cp-row"><span>Final goal</span><span><b>${w1(cv(fin[1]))} ${u}</b> · ${dateLabel(fin[0])}</span></div>
+    </div>`;
+  }
+  const rows=PLAN.map(([k,kg],i)=>{
+    const s=cpStatus(i),d=parse(k),w=s==='ok'||s==='bad'?cpWeight(k):null;
+    const lab=s==='ok'?'PASSED':s==='bad'?'MISSED':s==='none'?'NO DATA':i===ai?'NOW':'—';
+    const cls=s==='ok'?'ok':s==='bad'?'bad':i===ai?'now':'';
+    return `<div class="prow${i===ai?' now':''}"><span class="n">${i+1}</span><span class="d">${MON[d.getMonth()]} ${d.getDate()}</span>
+      <span>${w1(cv(kg))} ${u}${w!=null?`<span class="fact">${w1(cv(w))}</span>`:''}</span><span class="st ${cls}">${lab}</span></div>`;
+  }).join('');
+  const list=`<div class="card"><div class="mh"><span class="eyebrow">Plan</span><span class="cp-n">${passed}/${PLAN.length} PASSED</span></div>${rows}</div>`;
+  return {top,list};
+}
+
 function vWeight(){
   const ks=Object.keys(S.weights).sort(),u=S.settings.unit;
-  if(!ks.length) return `<div class="card empty">No weight logged yet<br>Tap + to add your weight</div>`;
+  if(!ks.length) return vPlan().top+`<div class="card empty">No weight logged yet<br>Tap + to add your weight</div>`;
   const cur=S.weights[ks.at(-1)];
   const cutoff=wRange?dkey(addDays(new Date(),-wRange+1)):'';
   const pts=ks.filter(k=>k>=cutoff);
@@ -264,7 +325,8 @@ function vWeight(){
     hist+=`<div class="hrow"><span class="d">${dateLabel(k)}</span><span class="r">
       <span class="delta ${d>0?'up':d<0?'down':''}">${d==null||Math.abs(d)<.05?'':(d>0?'+':'')+w1(d)}</span>
       <span>${w1(cv(S.weights[k]))} ${u}</span><button class="x" onclick="delWeight('${k}')">×</button></span></div>`});
-  return `<div class="tiles">
+  const P=vPlan();
+  return P.top+`<div class="tiles">
     <div class="tile"><small>Current</small><b>${w1(cv(cur))}<span>${u}</span></b></div>
     <div class="tile"><small>${wRange?wRange+' days':'Total'}</small><b class="${diff>0?'up':diff<0?'down':''}">${diff>0?'+':''}${w1(diff)}</b></div>
     <div class="tile"><small>To goal</small><b>${toGo==null?'—':w1(Math.abs(toGo))}${toGo==null?'':'<span>'+u+'</span>'}</b></div>
@@ -273,6 +335,7 @@ function vWeight(){
     <div class="seg">${rng.map(([v,l])=>`<button class="${wRange===v?'on':''}" onclick="wRange=${v};render()">${l}</button>`).join('')}</div>
     ${chart(pts)}
   </div>
+  ${P.list}
   <div class="card"><div class="eyebrow">History</div>${hist}</div>`;
 }
 function chart(pts){

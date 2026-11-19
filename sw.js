@@ -1,5 +1,5 @@
 // Bump VERSION after every update so phones get the new files
-const VERSION = 'prime-v8';
+const VERSION = 'prime-v9';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.png.PNG'];
 
 self.addEventListener('install', e => {
